@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDoS Mitigation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-card .label {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .status-normal {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-attack {
+            background: #f44336;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .table-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .table-container h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f5f5f5;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
+        button.danger {
+            background: #f44336;
+        }
+
+        button.danger:hover {
+            background: #d32f2f;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .last-update {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Bảng Điều Khiển Giảm Thiểu DDoS</h1>
+            <p>Theo dõi thời gian thực về bảo vệ server và thống kê tấn công</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated here -->
+        </div>
+
+        <div class="table-container">
+            <h2>📊 Top Địa Chỉ IP</h2>
+            <table id="ipTable">
+                <thead>
+                    <tr>
+                        <th>Địa Chỉ IP</th>
+                        <th>Tổng Requests</th>
+                        <th>Cho Phép</th>
+                        <th>Bị Chặn</th>
+                        <th>Tỷ Lệ Chặn</th>
+                    </tr>
+                </thead>
+                <tbody id="ipTableBody">
+                    <!-- Data will be populated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="controls">
+            <button onclick="refreshStats()">🔄 Làm Mới Ngay</button>
+            <button onclick="resetStats()" class="danger">🗑️ Reset Thống Kê</button>
+            <div class="auto-refresh">
+                <input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
+                <label for="autoRefresh">Tự động làm mới mỗi 2 giây</label>
+            </div>
+            <div class="last-update" id="lastUpdate"></div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval;
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update stat cards
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <h3>Trạng Thái Server</h3>
+                    <div class="value">${data.server.status}</div>
+                    <div class="label">Thời gian hoạt động: ${data.server.uptime}</div>
+                    <span class="status-badge ${data.server.status.includes('TẤN CÔNG') ? 'status-attack' : 'status-normal'}">
+                        ${data.server.status.includes('TẤN CÔNG') ? '⚠️ ĐANG BỊ TẤN CÔNG' : '✅ Bình thường'}
+                    </span>
+                </div>
+                <div class="stat-card">
+                    <h3>Tổng Requests</h3>
+                    <div class="value">${data.requests.total}</div>
+                    <div class="label">Từ khi server khởi động</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Requests Được Cho Phép</h3>
+                    <div class="value" style="color: #4caf50;">${data.requests.allowed}</div>
+                    <div class="label">Vượt qua rate limiting</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Requests Bị Chặn</h3>
+                    <div class="value" style="color: #f44336;">${data.requests.blocked}</div>
+                    <div class="label">${data.requests.blockedPercentage}% bị chặn</div>
+                </div>
+            `;
+
+            // Update IP table
+            const ipTableBody = document.getElementById('ipTableBody');
+            if (data.topIPs && data.topIPs.length > 0) {
+                ipTableBody.innerHTML = data.topIPs.map(ip => `
+                    <tr>
+                        <td><strong>${ip.ip}</strong></td>
+                        <td>${ip.totalRequests}</td>
+                        <td style="color: #4caf50;">${ip.allowed}</td>
+                        <td style="color: #f44336;">${ip.blocked}</td>
+                        <td><strong>${ip.blockRate}</strong></td>
+                    </tr>
+                `).join('');
+            } else {
+                ipTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">Chưa có requests nào</td></tr>';
+            }
+
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = 
+                `Cập nhật lần cuối: ${new Date(data.timestamp).toLocaleString('vi-VN')}`;
+        }
+
+        function refreshStats() {
+            fetchStats();
+        }
+
+        async function resetStats() {
+            if (!confirm('Bạn có chắc chắn muốn reset tất cả thống kê?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/reset-stats', { method: 'POST' });
+                const data = await response.json();
+                alert('Đã reset thống kê thành công!');
+                refreshStats();
+            } catch (error) {
+                console.error('Lỗi khi reset thống kê:', error);
+                alert('Lỗi khi reset thống kê');
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(refreshStats, 2000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        // Initial load
+        refreshStats();
+        toggleAutoRefresh();
+    </script>
+</body>
+</html>
+
